@@ -1,0 +1,41 @@
+name: Autograde Laboratorio 10
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del Codigo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Entorno PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, openssl, json
+
+      - name: Descargar Autograde Oficial de Main
+        run: |
+          curl -s -O https://raw.githubusercontent.com/SarmientoEdu/laboratorio10-php/main/autograde.php || true
+
+      - name: Ejecutar Evaluacion Autograda
+        run: php autograde.php
+
+      - name: Subir Resultado como Artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-evaluacion
+          path: resultado_autograde.json
