@@ -1,0 +1,13 @@
+# XAMPP / Apache / OS
+.DS_Store
+Thumbs.db
+nbproject/
+.idea/
+.vscode/
+
+# Resultados locales de Autograde
+resultado_autograde.json
+*.log
+
+# Archivos de Sesion de PHP
+/tmp/
