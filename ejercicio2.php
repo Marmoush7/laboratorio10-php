@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 
     <?php if ($resultadoData): ?>
-        <h2>Resumen del Cálculo</h2>
+        <h2>Resumen del cálculo</h2>
         <p>Cuota Mensual: $<?php echo $resultadoData['cuota']; ?></p>
         <p>Interés Total: $<?php echo $resultadoData['interes_total']; ?></p>
 

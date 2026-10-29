@@ -15,13 +15,11 @@ try {
     die("Error en los parámetros: " . $e->getMessage());
 }
 
-// Cifrado simétrico OpenSSL requerido
 $key = hash('sha256', $cedula_semilla);
 $iv = substr(hash('sha256', 'UTP_IV_' . $cedula_semilla), 0, 16);
 $textoPlano = "Monto: $monto | Cuota: " . round($cuota, 2);
 $cifradoResultado = openssl_encrypt($textoPlano, 'AES-256-CBC', $key, 0, $iv);
 
-// Generar tabla de amortización con bucle
 $tablaAmortizacion = [];
 $saldoRestante = $monto;
 $r = ($tasa / 100) / 12;
