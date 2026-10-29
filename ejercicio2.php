@@ -1,52 +1,43 @@
 <?php
-/**
- * Ejercicio 2: Formulario POST Seguro con CSRF y Sanitizacion
- */
-session_start();
-
-// TODO: Incluir archivos de biblioteca mediante require_once
+// ejercicio2.php
 require_once 'includes/seguridad.php';
 require_once 'includes/CalculadoraFinanciera.php';
 
-// TODO: Gestionar Token CSRF
+session_start();
+
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-$mensajeError = "";
-$resultadoJSON = null;
+$resultadoData = null;
+$errorMsg = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // TODO: Validar Token CSRF enviado
-    $tokenEnviado = $_POST['csrf_token'] ?? '';
-    if (!hash_equals($_SESSION['csrf_token'], $tokenEnviado)) {
-        die("Error de validacion CSRF: Token invalido o expirado.");
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("Error CSRF: Token inválido.");
     }
 
-    // TODO: Sanitizar entradas POST
-    $semilla = htmlspecialchars(trim($_POST['cedula_semilla'] ?? '000'));
-    $monto   = filter_var($_POST['monto'] ?? 0, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
-    $tasa    = filter_var($_POST['tasa'] ?? 0, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
-    $plazo   = filter_var($_POST['plazo'] ?? 0, FILTER_SANITIZE_NUMBER_INT);
+    $cedula_semilla = htmlspecialchars(trim($_POST['cedula_semilla'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $monto = filter_var($_POST['monto'] ?? 0, FILTER_VALIDATE_FLOAT);
+    $tasa = filter_var($_POST['tasa'] ?? 0, FILTER_VALIDATE_FLOAT);
+    $plazo = filter_var($_POST['plazo'] ?? 0, FILTER_VALIDATE_INT);
 
-    if ($monto > 0 && $tasa > 0 && $plazo > 0) {
+    if ($monto < 100 || $tasa < 1 || $plazo < 1) {
+        $errorMsg = "Por favor, introduce valores válidos (monto mínimo 100).";
+    } else {
         try {
-            $calc = new CalculadoraFinanciera((float)$monto, (float)$tasa, (int)$plazo);
+            $calc = new CalculadoraFinanciera($monto, $tasa, $plazo);
             $cuota = $calc->calcularCuotaMensual();
             $interesTotal = $calc->calcularInteresTotal();
 
             $resultadoData = [
-                'semilla'       => $semilla,
-                'cuota'         => $cuota,
-                'interes_total' => $interesTotal
+                "cuota" => round($cuota, 2),
+                "interes_total" => round($interesTotal, 2),
+                "semilla" => $cedula_semilla
             ];
-
-            $resultadoJSON = json_encode($resultadoData);
         } catch (Exception $e) {
-            $mensajeError = $e->getMessage();
+            $errorMsg = $e->getMessage();
         }
-    } else {
-        $mensajeError = "Por favor, ingrese valores validos en todos los campos.";
     }
 }
 ?>
@@ -54,63 +45,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Laboratorio #10 - Ejercicio 2</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f4f9; }
-        .container { max-width: 600px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="number"] { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { background: #0056b3; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
-        .error { color: red; margin-bottom: 15px; }
-        .resultado { background: #e9ecef; padding: 15px; border-radius: 4px; margin-top: 20px; }
-    </style>
+    <title>Ejercicio 2 - Formulario Seguro</title>
 </head>
 <body>
-<div class="container">
-    <h2>Calculadora Financiera - Formulario POST Seguro</h2>
-    <?php if ($mensajeError): ?>
-        <div class="error"><?php echo $mensajeError; ?></div>
-    <?php endif; ?>
-
+    <h1>Calculadora Financiera - Formulario Seguro</h1>
+    <?php if(!empty($errorMsg)) echo "<p style='color:red;'>$errorMsg</p>"; ?>
+    
     <form action="ejercicio2.php" method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
         
-        <div class="form-group">
-            <label for="cedula_semilla">Ultimos 3 digitos de Cedula (Semilla):</label>
-            <input type="text" id="cedula_semilla" name="cedula_semilla" required maxlength="3" pattern="\d{3}">
-        </div>
+        <label>Últimos dígitos cédula (cedula_semilla):</label><br>
+        <input type="text" name="cedula_semilla" required><br><br>
 
-        <div class="form-group">
-            <label for="monto">Monto del Prestamo ($):</label>
-            <input type="number" id="monto" name="monto" step="0.01" required min="100">
-        </div>
+        <label>Monto (Mínimo 100):</label><br>
+        <input type="number" step="0.01" name="monto" min="100" required><br><br>
 
-        <div class="form-group">
-            <label for="tasa">Tasa de Interes Anual (%):</label>
-            <input type="number" id="tasa" name="tasa" step="0.1" required min="1">
-        </div>
+        <label>Tasa Anual (%):</label><br>
+        <input type="number" step="0.01" name="tasa" min="1" required><br><br>
 
-        <div class="form-group">
-            <label for="plazo">Plazo en Meses:</label>
-            <input type="number" id="plazo" name="plazo" required min="1">
-        </div>
+        <label>Plazo (Meses):</label><br>
+        <input type="number" name="plazo" min="1" required><br><br>
 
-        <button type="submit">Calcular Cuota</button>
+        <button type="submit">Calcular</button>
     </form>
 
-    <?php if ($resultadoJSON): ?>
-        <div class="resultado">
-            <h3>Resultado del Calculo</h3>
-            <?php $res = json_decode($resultadoJSON, true); ?>
-            <p><strong>Cuota Mensual:</strong> $<?php echo number_format($res['cuota'], 2); ?></p>
-            <p><strong>Interes Total:</strong> $<?php echo number_format($res['interes_total'], 2); ?></p>
-        </div>
-        <!-- Bloque estructurado exigido para validacion del Autograde -->
+    <?php if ($resultadoData): ?>
+        <h2>Resumen del Cálculo</h2>
+        <p>Cuota Mensual: $<?php echo $resultadoData['cuota']; ?></p>
+        <p>Interés Total: $<?php echo $resultadoData['interes_total']; ?></p>
+
         <script type="application/json" id="resultado-ej2">
-            <?php echo $resultadoJSON; ?>
+            <?php echo json_encode($resultadoData); ?>
         </script>
     <?php endif; ?>
-</div>
 </body>
 </html>
