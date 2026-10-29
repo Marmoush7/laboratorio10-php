@@ -1,7 +1,10 @@
 <?php
-if (!defined('ACCESO_PERMITIDO')) {
-    http_response_code(403);
-    die('Acceso directo no permitido.');
+// includes/CalculadoraFinanciera.php
+require_once __DIR__ . '/seguridad.php';
+
+if (!defined('ACCESO_PERMITIDO') || ACCESO_PERMITIDO !== true) {
+    header('HTTP/1.1 403 Forbidden');
+    die("Acceso directo no permitido.");
 }
 
 class CalculadoraFinanciera {
@@ -11,49 +14,34 @@ class CalculadoraFinanciera {
 
     public function __construct(float $monto, float $tasa, int $plazo) {
         if ($monto <= 0 || $tasa <= 0 || $plazo <= 0) {
-            throw new InvalidArgumentException('Todos los valores deben ser mayores a cero.');
+            throw new InvalidArgumentException("Los valores deben ser mayores a cero.");
         }
         $this->montoBase = $monto;
         $this->tasaAnual = $tasa;
         $this->plazoMeses = $plazo;
     }
 
-    public function getMontoBase(): float {
-        return $this->montoBase;
-    }
-
-    public function getTasaAnual(): float {
-        return $this->tasaAnual;
-    }
-
-    public function getPlazoMeses(): int {
-        return $this->plazoMeses;
-    }
+    public function getMontoBase(): float { return $this->montoBase; }
+    public function getTasaAnual(): float { return $this->tasaAnual; }
+    public function getPlazoMeses(): int { return $this->plazoMeses; }
 
     public function calcularCuotaMensual(): float {
-        $i = ($this->tasaAnual / 100) / 12; // interés mensual
+        $r = ($this->tasaAnual / 100) / 12;
         $n = $this->plazoMeses;
-
-        if ($i == 0) {
+        if ($r == 0) {
             return $this->montoBase / $n;
         }
-
-        $cuota = $this->montoBase * ($i * pow(1 + $i, $n)) / (pow(1 + $i, $n) - 1);
-        return round($cuota, 2);
+        $cuota = $this->montoBase * ($r * pow(1 + $r, $n)) / (pow(1 + $r, $n) - 1);
+        return $cuota;
     }
 
     public function __call($name, $arguments) {
         if ($name === 'calcularInteresTotal') {
             $mesesExtra = isset($arguments[0]) ? (int)$arguments[0] : 0;
             $plazoTotal = $this->plazoMeses + $mesesExtra;
-
-            // Crear una calculadora temporal con el nuevo plazo
-            $temp = new self($this->montoBase, $this->tasaAnual, $plazoTotal);
-            $cuota = $temp->calcularCuotaMensual();
-            $interesTotal = ($cuota * $plazoTotal) - $this->montoBase;
-            return round($interesTotal, 2);
+            $cuota = $this->calcularCuotaMensual();
+            return ($cuota * $plazoTotal) - $this->montoBase;
         }
-
-        throw new BadMethodCallException("Método $name no existe.");
+        throw new BadMethodCallException("El método '$name' no existe.");
     }
-}Commit obligatorio
+}
